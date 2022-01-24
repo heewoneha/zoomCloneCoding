@@ -1,6 +1,7 @@
 # 노마드코더 줌 클론코딩 챌린지
 
 Zoom Clone using NodeJS, WebRTC and Websockets.
+https://nomadcoders.co/c/noom-challenge/lobby
 
 ---------------
 
