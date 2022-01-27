@@ -16,7 +16,8 @@ https://nomadcoders.co/c/noom-challenge/lobby
 
 ### 3일차
 + 회의 Room 구현 (2)
-+ (추가 예정)
++ 메인화면에서, 열려있는 모든 Room 목록 표시 기능 추가함
 
 ### 4일차
++ Room 카메라 기능 추가함
 + (추가 예정)

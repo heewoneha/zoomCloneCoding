@@ -1,7 +1,7 @@
 import http from "http"; //npm run dev
-import SocketIO from "socket.io";
+import { Server } from "socket.io";
+import { instrument } from '@socket.io/admin-ui';
 import express from "express";
-import { doesNotMatch } from "assert";
 
 const app = express();
 
@@ -13,41 +13,57 @@ app.get('/*', (req, res) => res.redirect('/'));
 
 
 const httpServer = http.createServer(app); //Http Server
-const wsServer = SocketIO(httpServer);
+const wsServer = new Server(httpServer, {
+    cors: {
+        origin: ['https://admin.socket.io'],
+        credentials: true,
+    },
+});
 
-wsServer.on('connection', socket => {
+instrument(wsServer, {
+    auth: false
+});
+
+function publicRooms(){
+    const sids = wsServer.sockets.adapter.sids;
+    const rooms = wsServer.sockets.adapter.rooms;
+    const public_Rooms = [];
+    rooms.forEach((_, key) => {
+        if (sids.get(key) === undefined){
+            public_Rooms.push(key);
+        }
+    });
+    return public_Rooms;
+}
+
+function countRoom(roomName){
+    return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
+
+wsServer.on('connection', (socket) => {
+    socket['nickname'] = 'Anonymous';
     socket.onAny((event) => {
+        console.log(wsServer.sockets.adapter);
         console.log(`Socket Event:${event}`);
     });
     socket.on('enter_room', (roomName, done) => {
         socket.join(roomName);
         done();
-        socket.to(roomName).emit('welcome');
+        socket.to(roomName).emit('welcome', socket.nickname, countRoom(roomName));
+        wsServer.sockets.emit('room_change', publicRooms());
     });
+    socket.on('disconnecting', () => {
+        socket.rooms.forEach((room) => socket.to(room).emit('bye', socket.nickname, countRoom(room) - 1));
+    });
+    socket.on('disconnect', () => {
+        wsServer.sockets.emit('room_change', publicRooms());
+    });
+    socket.on('new_message', (msg, room, done) => {
+        socket.to(room).emit('new_message', `${socket.nickname}: ${msg}`);
+        done();
+    });
+    socket.on('nickname', (nickname) => (socket['nickname'] = nickname));
 });
-
-/*const sockets = []; //Fake DB
-
-const wss = new WebSocket.Server({ server }); // + Web Socket Server, ws://localhost:3000
-wss.on('connection', (socket) => { //[This Socket Mean] Connected Browser
-    sockets.push(socket);
-    socket['nickname'] = 'Anonymous'; //If not enter nickname
-    console.log('Connected to Browser! 😊');
-    socket.on('close', () => console.log('Disconnected from Browser ❌'));
-    socket.on('message', msg => {
-        const message = JSON.parse(msg);
-        switch(message.type) {
-            case 'new_message':
-                sockets.forEach((aSocket) =>
-                    aSocket.send(`${socket.nickname}: ${message.payload}`)
-                );
-                break;
-            case 'nickname':
-                socket['nickname'] = message.payload;
-                break;
-        }
-    });
-});*/
 
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 httpServer.listen(3000, handleListen);
